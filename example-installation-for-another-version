@@ -1,6 +1,17 @@
 <?php
 
 $uPOST = sanitizeInput($_POST);
+$ERROR = $SUCCESS = [];
+
+try {
+    $generatedApiKey = bin2hex(random_bytes(16));
+} catch (Exception $exception) {
+    $generatedApiKey = substr(str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 32);
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $uPOST['api_key'] = $generatedApiKey;
+}
 $rootDirectory = dirname(__DIR__).'/';
 
 $configDirectory = $rootDirectory.'config.php';
@@ -16,34 +27,59 @@ if(phpversion() < 8.2){
 }
 
 if(!empty($_SERVER['SCRIPT_URI'])) {
-    $URI = str_replace($_SERVER['REQUEST_SCHEME'].'://','',$_SERVER['SCRIPT_URI']);
-    if(basename($URI) == 'index.php') {
-        $URI = (dirname($URI));
-    }
-    $webAddress = (dirname($URI)).'/';
+    $scriptUri = $_SERVER['SCRIPT_URI'];
+} else {
+    $scheme = (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'example.com';
+    $scriptUri = $scheme.'://'.$host.$_SERVER['SCRIPT_NAME'];
 }
-else {
-    $webAddress = $_SERVER['HTTP_HOST'].dirname(dirname($_SERVER['SCRIPT_NAME']));
+
+if(basename($scriptUri) === 'index.php') {
+    $scriptUri = dirname($scriptUri);
 }
+
+$webAddress = rtrim($scriptUri, '/');
 
 if(isset($uPOST['submit']) && $uPOST['submit']) {
-
-    $ERROR = [];
     $SUCCESS[] = "✅ ربات با موفقیت نصب شد !";
     $rawConfigData = file_get_contents($configDirectory);
 
     $tgAdminId = $uPOST['admin_id'];
     $tgBotToken = $uPOST['tg_bot_token'];
+    $apiKey = $uPOST['api_key'] ?: $generatedApiKey;
     $dbInfo['host'] = 'localhost';
     $dbInfo['name'] = $uPOST['database_name'];
     $dbInfo['username'] = $uPOST['database_username'];
     $dbInfo['password'] = $uPOST['database_password'];
-    $document['address'] = dirname($uPOST['bot_address_webhook']);
+    $botWebhookUrl = trim($uPOST['bot_address_webhook']);
+    $parsedWebhook = parse_url($botWebhookUrl);
 
-    if($_SERVER['REQUEST_SCHEME'] != 'https') {
+    $webhookScheme = strtolower($parsedWebhook['scheme'] ?? 'https');
+    if($webhookScheme !== 'https') {
         $ERROR[] = 'برای فعال سازی ربات تلگرام نیازمند فعال بودن SSL (https) هستید';
-        $ERROR[] = '<i>اگر از فعال بودن SSL مطمئن هستید آدرس صفحه را چک کنید، حتما با https صفحه را باز کنید.</i>';
-        $ERROR[] = '<a href="https://'.$_SERVER['HTTP_HOST'].'/'.$_SERVER['SCRIPT_NAME'].'">https://'.$_SERVER['HTTP_HOST'].'/'.$_SERVER['SCRIPT_NAME'].'</a>';
+        $ERROR[] = '<i>اگر از فعال بودن SSL مطمئن هستید، حتما در ابتدای آدرس خود از https:// استفاده کنید.</i>';
+    }
+
+    $webhookHost = $parsedWebhook['host'] ?? '';
+    if(empty($webhookHost)) {
+        $ERROR[] = 'دامنه وبهوک نامعتبر است. لطفا آدرس کامل وبهوک را وارد کنید.';
+    }
+
+    $webhookPort = isset($parsedWebhook['port']) ? ':' . $parsedWebhook['port'] : '';
+    $webhookPath = $parsedWebhook['path'] ?? '';
+    $webhookDirectory = rtrim(str_replace('\\', '/', dirname($webhookPath)), '/');
+    if($webhookDirectory === '.') {
+        $webhookDirectory = '';
+    }
+
+    $document['scheme'] = 'https';
+    $document['host'] = $webhookHost . $webhookPort;
+    $document['path'] = $webhookDirectory;
+    $document['address'] = rtrim($document['host'] . $document['path'], '/');
+    $document['base_url'] = $document['scheme'] . '://' . $document['address'];
+
+    if(empty($apiKey)) {
+        $ERROR[] = 'کلید API نمی‌تواند خالی باشد.';
     }
 
     $isValidToken = isValidTelegramToken($tgBotToken);
@@ -84,13 +120,13 @@ if(isset($uPOST['submit']) && $uPOST['submit']) {
 
     if(empty($ERROR)) {
         $replacements = [
-            '{DOMAIN.COM/PATH/BOT}' => $document['address'],
-            '{BOT_USERNAME}' => $tgBot['details']['result']['username'],
-            '{BOT_TOKEN}' => $tgBotToken,
-            '{ADMIN_#ID}' => $tgAdminId,
-            '{DATABASE_USERNAME}' => $dbInfo['username'],
-            '{DATABASE_PASSOWRD}' => $dbInfo['password'],
-            '{DATABASE_NAME}' => $dbInfo['name']
+            '{domain_name}' => $document['address'],
+            '{username_bot}' => $tgBot['details']['result']['username'],
+            '{API_KEY}' => $apiKey,
+            '{admin_number}' => $tgAdminId,
+            '{database_name}' => $dbInfo['name'],
+            '{username_db}' => $dbInfo['username'],
+            '{password_db}' => $dbInfo['password']
         ];
 
         $newConfigData = str_replace(array_keys($replacements),array_values($replacements),$rawConfigData,$count);
@@ -99,9 +135,10 @@ if(isset($uPOST['submit']) && $uPOST['submit']) {
             $ERROR[] = "فایل های پروژه را مجددا دانلود و بارگذاری کنید (<a href='https://github.com/mahdiMGF2/botmirzapanel'>‎🌐 Github</a>)";
         }
         else {
-            getContents("https://api.telegram.org/bot".$tgBotToken."/setwebhook?url=https://".$document['address'].'/index.php');
-            getContents("https://".$document['address']."/table.php");
-            $botFirstMessage = "\n[🤖] شما به عنوان ادمین معرفی شدید.";
+            $SUCCESS[] = "🔐 کلید API شما: <code>".$apiKey."</code>";
+            getContents("https://api.telegram.org/bot".$tgBotToken."/setwebhook?url=".$document['base_url'].'/index.php');
+            getContents($document['base_url']."/table.php");
+            $botFirstMessage = "\n[🤖] شما به عنوان ادمین معرفی شدید."."\n🔐 API Key: " . $apiKey;
             getContents('https://api.telegram.org/bot'.$tgBotToken.'/sendMessage?chat_id='.$tgAdminId.'&text='.urlencode(' '.$SUCCESS[0].$botFirstMessage).'&reply_markup={"inline_keyboard":[[{"text":"⚙️ شروع ربات، رفتن به تنظیمات بخش ادمین","callback_data":"PANEL"}]]}');
         }
 
@@ -143,12 +180,18 @@ if(isset($uPOST['submit']) && $uPOST['submit']) {
                 </div>
                 <div class="form-group">
                     <label for="tg_bot_token">توکن ربات تلگرام :</label>
-                    <input type="text" id="tg_bot_token" name="tg_bot_token" 
+                    <input type="text" id="tg_bot_token" name="tg_bot_token"
                            placeholder="BOT TOKEN" value="<?php echo $uPOST['tg_bot_token'] ?? ''; ?>" required>
                 </div>
                 <div class="form-group">
+                    <label for="api_key">کلید API :</label>
+                    <input type="text" id="api_key" name="api_key"
+                           placeholder="API KEY" value="<?php echo $uPOST['api_key'] ?? $generatedApiKey; ?>" required>
+                    <small style="display:block;margin-top:6px;color:#666;">می&zwnj;توانید مقدار پیشنهادی را نگه دارید یا مقدار دلخواه خود را وارد کنید.</small>
+                </div>
+                <div class="form-group">
                     <label for="database_username">نام کاربری دیتابیس :</label>
-                    <input type="text" id="database_username" name="database_username" 
+                    <input type="text" id="database_username" name="database_username"
                            placeholder="DATABASE USERNAME" value="<?php echo $uPOST['database_username'] ?? ''; ?>" required>
                 </div>
                 <div class="form-group">
@@ -165,7 +208,7 @@ if(isset($uPOST['submit']) && $uPOST['submit']) {
                     <details>
                         <summary for="secret_key"><i>آدرس سورس ربات</i></summary>
                         <label for="bot_address_webhook ">آدرس صفحه سورس ربات</label>
-                        <input type="text" id="bot_address_webhook" name="bot_address_webhook" placeholder="Web URL for Set Webhook" value="<?php echo $webAddress.'/index.php'; ?>" required>
+                        <input type="text" id="bot_address_webhook" name="bot_address_webhook" placeholder="Web URL for Set Webhook" value="<?php echo $uPOST['bot_address_webhook'] ?? rtrim($webAddress,'/').'/index.php'; ?>" required>
                     </details>
                 </div>
                 <div class="form-group">
