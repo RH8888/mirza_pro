@@ -31,3 +31,7 @@ you can support it through the link below:
 ---
 
 ⭐ Don’t forget to **Star** the repository to help others discover it!
+
+## Installation
+
+Looking to deploy the bot on your own infrastructure? Follow the step-by-step instructions in [docs/INSTALLATION.md](docs/INSTALLATION.md) for environment requirements, database setup, webhook configuration, and cron scheduling details distilled from the source code.
