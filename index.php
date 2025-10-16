@@ -155,40 +155,42 @@ if ($setting['statusnamecustom'] == 'onnamecustom')
     $statusnote = true;
 if ($setting['statusnoteforf'] == "0" && $user['agent'] == "f")
     $statusnote = false;
-if (intval($porsantreport) == 0) {
-    $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $setting['Channel_Report'],
-        'name' => $textbotlang['Admin']['affiliates']['titletopic']
-    ]);
-    if ($createForumTopic['result']['message_thread_id'] != null) {
-        update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "porsantreport");
+if (!empty($setting['Channel_Report'])) {
+    if (intval($porsantreport) == 0) {
+        $createForumTopic = telegram('createForumTopic', [
+            'chat_id' => $setting['Channel_Report'],
+            'name' => $textbotlang['Admin']['affiliates']['titletopic']
+        ]);
+        if (!empty($createForumTopic['ok']) && !empty($createForumTopic['result']['message_thread_id'])) {
+            update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "porsantreport");
+        }
     }
-}
-if (intval($reportnight) == 0) {
-    $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $setting['Channel_Report'],
-        'name' => $textbotlang['Admin']['report']['reportnight']
-    ]);
-    if ($createForumTopic['result']['message_thread_id'] != null) {
-        update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reportnight");
+    if (intval($reportnight) == 0) {
+        $createForumTopic = telegram('createForumTopic', [
+            'chat_id' => $setting['Channel_Report'],
+            'name' => $textbotlang['Admin']['report']['reportnight']
+        ]);
+        if (!empty($createForumTopic['ok']) && !empty($createForumTopic['result']['message_thread_id'])) {
+            update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reportnight");
+        }
     }
-}
-if (intval($reportcron) == 0) {
-    $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $setting['Channel_Report'],
-        'name' => $textbotlang['Admin']['report']['reportcron']
-    ]);
-    if ($createForumTopic['result']['message_thread_id'] != null) {
-        update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reportcron");
+    if (intval($reportcron) == 0) {
+        $createForumTopic = telegram('createForumTopic', [
+            'chat_id' => $setting['Channel_Report'],
+            'name' => $textbotlang['Admin']['report']['reportcron']
+        ]);
+        if (!empty($createForumTopic['ok']) && !empty($createForumTopic['result']['message_thread_id'])) {
+            update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reportcron");
+        }
     }
-}
-if (intval($reportbackup) == 0) {
-    $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $setting['Channel_Report'],
-        'name' => "🤖 بکاپ ربات نماینده"
-    ]);
-    if ($createForumTopic['result']['message_thread_id'] != null) {
-        update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "backupfile");
+    if (intval($reportbackup) == 0) {
+        $createForumTopic = telegram('createForumTopic', [
+            'chat_id' => $setting['Channel_Report'],
+            'name' => "🤖 بکاپ ربات نماینده"
+        ]);
+        if (!empty($createForumTopic['ok']) && !empty($createForumTopic['result']['message_thread_id'])) {
+            update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "backupfile");
+        }
     }
 }
 foreach ($datatextbotget as $row) {
