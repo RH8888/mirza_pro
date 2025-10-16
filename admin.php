@@ -2838,7 +2838,12 @@ $caption";
     sendmessage($from_id, $textreports, $backadmin, 'HTML');
     step('addchannelid', $from_id);
 } elseif ($user['step'] == "addchannelid") {
-    $outputcheck = sendmessage($text, $textbotlang['Admin']['Channel']['TestChannel'], null, 'HTML');
+    $chatId = $text;
+    $outputcheck = sendmessage($chatId, $textbotlang['Admin']['Channel']['TestChannel'], null, 'HTML');
+    if (!$outputcheck['ok'] && isset($outputcheck['parameters']['migrate_to_chat_id'])) {
+        $chatId = $outputcheck['parameters']['migrate_to_chat_id'];
+        $outputcheck = sendmessage($chatId, $textbotlang['Admin']['Channel']['TestChannel'], null, 'HTML');
+    }
     if (!$outputcheck['ok']) {
         $texterror = "❌ اتصال به گروه با موفقیت انجام نشد  
 
@@ -2852,7 +2857,7 @@ $caption";
         return;
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $chatId,
         'name' => "🛍 گزارش های خرید"
     ]);
     if (!$createForumTopic['ok']) {
@@ -2864,7 +2869,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "buyreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $chatId,
         'name' => "📌 گزارش خرید خدمات"
     ]);
     if (!$createForumTopic['ok']) {
@@ -2876,7 +2881,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "otherservice");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $chatId,
         'name' => "🔑 گزارش اکانت تست"
     ]);
     if (!$createForumTopic['ok']) {
@@ -2888,7 +2893,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "reporttest");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $chatId,
         'name' => "⚙️ سایر گزارشات"
     ]);
     if (!$createForumTopic['ok']) {
@@ -2900,7 +2905,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "otherreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $chatId,
         'name' => "❌ گزارش خطا ها"
     ]);
     if (!$createForumTopic['ok']) {
@@ -2912,7 +2917,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "errorreport");
     }
     $createForumTopic = telegram('createForumTopic', [
-        'chat_id' => $text,
+        'chat_id' => $chatId,
         'name' => "💰 گزارش مالی"
     ]);
     if (!$createForumTopic['ok']) {
@@ -2924,7 +2929,7 @@ $caption";
         update("topicid", "idreport", $createForumTopic['result']['message_thread_id'], "report", "paymentreport");
     }
     sendmessage($from_id, $textbotlang['Admin']['Channel']['SetChannelReport'], $setting_panel, 'HTML');
-    update("setting", "Channel_Report", $text);
+    update("setting", "Channel_Report", $chatId);
     step('home', $from_id);
 } elseif ($text == "🏬 تنظیمات فروشگاه" && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, $textbotlang['users']['selectoption'], $shopkeyboard, 'HTML');
